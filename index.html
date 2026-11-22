@@ -23,7 +23,7 @@ button,input,textarea{font:inherit}button{cursor:pointer}.sidebar{position:fixed
 @media(max-width:900px){.sidebar{transform:translateX(-100%);transition:transform .25s}body.sidebar-open .sidebar{transform:translateX(0)}.main{margin-left:0}.mobile-menu{display:inline-flex}body.sidebar-open .mobile-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:15}.progress-area{width:130px}}
 @media(max-width:560px){.topbar{padding:10px 12px}.progress-area{display:none}.content{padding:18px 12px 60px}.hero{padding:20px;border-radius:16px}.book-content{padding:18px;border-radius:14px}.book-content h1{font-size:25px}.book-content h2{font-size:22px}.actions .btn{padding:7px 9px}}
 @media print{.sidebar,.topbar,.reading-tools,.note-panel,.chapter-controls,#inkCanvas{display:none!important}.main{margin:0}.content{max-width:none;padding:0}.book-content{box-shadow:none;border:0}}
-</style>
+/* Collapsible topic navigation */\n.nav-item.level-1{cursor:pointer}.nav-item.level-1 .nav-chevron{margin-left:auto;flex:none;transition:transform .18s ease;font-size:11px;opacity:.7}.nav-item.level-1.collapsed .nav-chevron{transform:rotate(-90deg)}.nav-item.nav-collapsed-child{display:none}.nav-item.search-visible{display:flex!important}\n</style>
 </head>
 <body>
 <div class="mobile-overlay" onclick="toggleSidebar()"></div>
@@ -3195,6 +3195,62 @@ Data Store / EBX
 <div class="chapter-controls"><button class="btn" id="prevBtn">← Previous section</button><button class="btn primary" id="nextBtn">Next section →</button></div>
 </div></main>
 <script>
+// Collapsible topic groups in the sidebar
+(function(){
+ const nav=document.getElementById('nav');
+ const parents=[...nav.querySelectorAll('.nav-item.level-1')];
+ parents.forEach((parent,index)=>{
+   const children=[];
+   let next=parent.nextElementSibling;
+   while(next && !next.classList.contains('level-1')){
+     if(next.classList.contains('nav-item')) children.push(next);
+     next=next.nextElementSibling;
+   }
+   if(!children.length) return;
+   const key='studyBible.navCollapsed.'+parent.getAttribute('href');
+   const collapsed=localStorage.getItem(key)!=='false';
+   parent.classList.toggle('collapsed',collapsed);
+   const chevron=document.createElement('span');
+   chevron.className='nav-chevron';
+   chevron.textContent='▾';
+   chevron.setAttribute('aria-hidden','true');
+   parent.appendChild(chevron);
+   const apply=()=>{
+     children.forEach(child=>child.classList.toggle('nav-collapsed-child',parent.classList.contains('collapsed')));
+     chevron.textContent=parent.classList.contains('collapsed')?'▸':'▾';
+     parent.setAttribute('aria-expanded',String(!parent.classList.contains('collapsed')));
+   };
+   apply();
+   parent.addEventListener('click',event=>{
+     if(event.target.closest('.nav-chevron') || parent.contains(event.target)){
+       parent.classList.toggle('collapsed');
+       localStorage.setItem(key,String(parent.classList.contains('collapsed')));
+       apply();
+     }
+   });
+ });
+ // Search temporarily reveals matching items and their parent topic
+ const search=document.getElementById('search');
+ search.addEventListener('input',()=>{
+   const q=search.value.trim().toLowerCase();
+   if(!q) return;
+   nav.querySelectorAll('.nav-item').forEach(item=>{
+     if(item.dataset.title && item.dataset.title.includes(q)){
+       item.classList.add('search-visible');
+       let p=item.previousElementSibling;
+       while(p && !p.classList.contains('level-1')) p=p.previousElementSibling;
+       if(p && p.classList.contains('level-1')){
+         p.classList.remove('collapsed');
+         p.classList.add('search-visible');
+         const chev=p.querySelector('.nav-chevron'); if(chev) chev.textContent='▾';
+         let n=p.nextElementSibling;
+         while(n && !n.classList.contains('level-1')){n.classList.remove('nav-collapsed-child');n=n.nextElementSibling;}
+       }
+     }
+   });
+ });
+})();
+
 const KEY='studyBible.v1';const state=JSON.parse(localStorage.getItem(KEY)||'{}');state.completed||=[];state.bookmarks||=[];state.notes||={};state.ink||={};state.theme||='light';
 let currentSlug='',inkMode=false,erasing=false,drawing=false;const canvas=document.getElementById('inkCanvas'),ctx=canvas.getContext('2d');
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
